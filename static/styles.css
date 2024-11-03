@@ -472,3 +472,68 @@ input[type="file"] {
 .error-actions {
     margin-top: 20px;
 }
+
+/* Стили для чата */
+.chat-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.chat-messages {
+    height: 500px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+}
+
+.message {
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    border-radius: 10px;
+    max-width: 80%;
+}
+
+.message.user {
+    background-color: #4CAF50;
+    color: white;
+    margin-left: auto;
+}
+
+.message.assistant {
+    background-color: #f1f1f1;
+    color: #333;
+    margin-right: auto;
+}
+
+.message.system {
+    background-color: #fff3e0;
+    color: #666;
+    margin: 10px auto;
+    text-align: center;
+}
+
+.chat-input {
+    display: flex;
+}
+
+.chat-input form {
+    display: flex;
+    width: 100%;
+    gap: 10px;
+}
+
+.chat-input input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+.chat-input button {
+    min-width: 120px;
+}

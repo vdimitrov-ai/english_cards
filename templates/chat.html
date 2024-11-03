@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="chat-container">
+    <div class="chat-header">
+        <h2>Английский помощник</h2>
+        <div class="chat-controls">
+            <div class="model-settings">
+                <select id="modelSelect" class="model-select">
+                    <option value="yandex">Yandex GPT</option>
+                    <option value="mixtral">Mixtral 8x7B (32K)</option>
+                    <option value="llama3-70b">LLaMA-3 70B (8K)</option>
+                    <option value="gemma">Gemma 7B Instruct</option>
+                    <option value="llama3">LLaMA-3 8B (8K)</option>
+                    <option value="gemma2">Gemma 2 9B Instruct</option>
+                </select>
+                <div class="settings-controls">
+                    <div class="setting-item">
+                        <label for="temperature">Temperature:</label>
+                        <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7">
+                        <span id="temperatureValue">0.7</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="maxTokens">Max Tokens:</label>
+                        <input type="number" id="maxTokens" min="100" max="4000" value="2000">
+                    </div>
+                </div>
+            </div>
+            <button onclick="clearChatHistory()" class="common-btn clear-btn">Clear Context</button>
+        </div>
+    </div>
+    
+    <div class="chat-messages" id="chatMessages">
+        <div class="message system">
+            Привет! Я ваш помощник по английскому языку. Задайте мне вопрос о грамматике, произношении или использовании слов.
+        </div>
+    </div>
+    
+    <div class="chat-input">
+        <form id="chatForm" onsubmit="sendMessage(event)">
+            <input type="text" id="userMessage" placeholder="Введите ваш вопрос..." required>
+            <button type="submit" class="common-btn button">Отправить</button>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+// Добавляем функцию очистки истории
+async function clearChatHistory() {
+    try {
+        const response = await fetch('/clear_chat_history', {
+            method: 'POST',
+        });
+        
+        if (response.ok) {
+            // Очищаем контейнер сообщений, оставляя только приветственное сообщение
+            const messagesContainer = document.getElementById('chatMessages');
+            const welcomeMessage = messagesContainer.firstChild;
+            messagesContainer.innerHTML = '';
+            messagesContainer.appendChild(welcomeMessage);
+        } else {
+            addMessage('Ошибка при очистке истории.', 'system');
+        }
+    } catch (error) {
+        console.error('Error clearing chat history:', error);
+        addMessage('Ошибка при очистке истории.', 'system');
+    }
+}
+
+// Загружаем историю чата при загрузке страницы
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const response = await fetch('/get_chat_history');
+        const history = await response.json();
+        
+        // Очищаем контейнер сообщений, оставляя только приветственное сообщение
+        const messagesContainer = document.getElementById('chatMessages');
+        const welcomeMessage = messagesContainer.firstChild;
+        messagesContainer.innerHTML = '';
+        messagesContainer.appendChild(welcomeMessage);
+        
+        // Добавляем сообщения из истории
+        history.forEach(msg => {
+            addMessage(msg.message, msg.role, msg.role === 'assistant');
+        });
+    } catch (error) {
+        console.error('Error loading chat history:', error);
+    }
+});
+
+async function sendMessage(event) {
+    event.preventDefault();
+    
+    const messageInput = document.getElementById('userMessage');
+    const message = messageInput.value.trim();
+    if (!message) return;
+    
+    // Получаем настройки модел��
+    const model = document.getElementById('modelSelect').value;
+    const temperature = parseFloat(document.getElementById('temperature').value);
+    const maxTokens = parseInt(document.getElementById('maxTokens').value);
+    
+    // Добавляем сообщение пользователя
+    addMessage(message, 'user');
+    messageInput.value = '';
+    
+    try {
+        const response = await fetch('/ask', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                message: message,
+                model: model,
+                temperature: temperature,
+                max_tokens: maxTokens
+            })
+        });
+        
+        const data = await response.json();
+        addMessage(data.response, 'assistant', true);
+    } catch (error) {
+        addMessage('Извините, произошла ошибка. Попробуйте позже.', 'system');
+    }
+}
+
+function addMessage(text, type, useMarkdown = false) {
+    const messagesContainer = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    
+    // Если нужно использовать markdown и это ответ ассистента
+    if (useMarkdown && type === 'assistant') {
+        // Используем marked для преобразования markdown в HTML
+        messageDiv.innerHTML = marked.parse(text);
+    } else {
+        messageDiv.textContent = text;
+    }
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Добавляем обработчик изменения значения temperature
+document.getElementById('temperature').addEventListener('input', function(e) {
+    document.getElementById('temperatureValue').textContent = e.target.value;
+});
+</script>
+
+<style>
+/* Добавляем стили для markdown-форматирования */
+.message.assistant {
+    line-height: 1.5;
+}
+
+.message.assistant p {
+    margin: 0 0 10px 0;
+}
+
+.message.assistant code {
+    background-color: #f4f4f4;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.message.assistant pre {
+    background-color: #f4f4f4;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+
+.message.assistant strong {
+    font-weight: bold;
+}
+
+.message.assistant em {
+    font-style: italic;
+}
+
+.message.assistant ul, .message.assistant ol {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.message.assistant blockquote {
+    border-left: 3px solid #ccc;
+    margin: 10px 0;
+    padding-left: 10px;
+    color: #666;
+}
+
+/* Добавляем стили для заголовка и кнопки очистки */
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.clear-btn {
+    background-color: #dc3545;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.clear-btn:hover {
+    background-color: #c82333;
+}
+
+/* Добавляем стили для настроек модели */
+.chat-controls {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.model-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.model-select {
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.settings-controls {
+    display: flex;
+    gap: 15px;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.setting-item label {
+    font-size: 12px;
+    color: #666;
+}
+
+.setting-item input {
+    width: 100px;
+}
+</style>
+{% endblock %} 
