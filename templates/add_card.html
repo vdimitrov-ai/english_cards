@@ -4,12 +4,23 @@ _{% extends "base.html" %}
 <form method="POST" class="add-card-form" enctype="multipart/form-data">
     <div class="form-group">
         <label>Английское слово:</label>
-        <input type="text" name="english_word" required>
+        <input type="text" name="english_word" id="englishWord" required oninput="updatePronunciationUrl()">
     </div>
     
     <div class="form-group">
         <label>Русское слово:</label>
         <input type="text" name="russian_word" required>
+    </div>
+    
+    <div class="form-group">
+        <label>Транскрипция:</label>
+        <input type="text" name="transcription" placeholder="Например: /həˈləʊ/">
+    </div>
+    
+    <div class="form-group">
+        <label>Ссылка на произношение:</label>
+        <input type="url" name="pronunciation_url" id="pronunciationUrl" readonly>
+        <div class="url-hint">Ссылка на англо-русский словарь генерируется автоматически</div>
     </div>
     
     <div class="form-group">
@@ -25,4 +36,21 @@ _{% extends "base.html" %}
     
     <button type="submit" class="common-btn button">Добавить</button>
 </form>
+
+<script>
+function updatePronunciationUrl() {
+    const englishWord = document.getElementById('englishWord').value.trim().toLowerCase();
+    const baseUrl = 'https://dictionary.cambridge.org/dictionary/english-russian/';
+    
+    // Просто добавляем слово к базовому URL
+    document.getElementById('pronunciationUrl').value = englishWord ? baseUrl + englishWord : '';
+}
+
+// Добавляем стили для readonly поля
+document.addEventListener('DOMContentLoaded', function() {
+    const pronunciationUrl = document.getElementById('pronunciationUrl');
+    pronunciationUrl.style.backgroundColor = '#f5f5f5';
+    pronunciationUrl.style.cursor = 'default';
+});
+</script>
 {% endblock %}

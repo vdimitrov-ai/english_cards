@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 import random
 from werkzeug.utils import secure_filename
+from typing import List, Tuple
 
 app = Flask(__name__)
 
@@ -36,18 +37,67 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Создайте список сложных слов (можно разместить перед функцией init_db)
+ADVANCED_WORDS: List[Tuple[str, str, str, str, str]] = [
+    ('ubiquitous', 'вездесущий', 
+     'Присутствующий или находящийся повсюду одновременно. Пример: "Smartphones have become ubiquitous in modern society."',
+     '/juːˈbɪkwɪtəs/',
+     'https://dictionary.cambridge.org/dictionary/english-russian/ubiquitous'),
+    ('ephemeral', 'мимолётный', 
+     'Существующий очень короткое время. Пример: "The ephemeral nature of social media trends."',
+     '/ɪˈfem.ər.əl/',
+     'https://dictionary.cambridge.org/dictionary/english-russian/ephemeral'),
+    ('paradigm', 'парадигма', 
+     'Типичный пример или модель чего-либо. Пример: "This discovery represents a paradigm shift in our understanding."',
+     '/ˈpær.ə.daɪm/',
+     'https://dictionary.cambridge.org/dictionary/english-russian/paradigm'),
+    ('eloquent', 'красноречивый',
+     'Способный выражать мысли чётко и убедительно. Пример: "Her eloquent speech moved the audience."',
+     '/ˈel.ə.kwənt/',
+     'https://dictionary.cambridge.org/dictionary/english-russian/eloquent'),
+    ('meticulous', 'скрупулёзный',
+     'Проявляющий чрезвычайное внимание к деталям. Пример: "He is meticulous in his research."',
+     '/məˈtɪk.jə.ləs/',
+     'https://dictionary.cambridge.org/dictionary/english-russian/meticulous'),
+    ('ambiguous', 'двусмысленный',
+     'Имеющий более одного возможного значения. Пример: "The contract contained several ambiguous clauses."',
+     '/æmˈbɪɡ.ju.əs/',
+     'https://dictionary.cambridge.org/dictionary/english-russian/ambiguous'),
+    ('enigmatic', 'загадочный',
+     'Трудный для понимания, таинственный. Пример: "She gave an enigmatic smile."',
+     '/ˌen.ɪɡˈmæt.ɪk/',
+     'https://dictionary.cambridge.org/dictionary/english-russian/enigmatic'),
+    ('cognizant', 'осведомлённый',
+     'Имеющий знание или осознание чего-либо. Пример: "We are cognizant of the risks involved."',
+     '/ˈkɒɡ.nɪ.zənt/',
+     'https://dictionary.cambridge.org/dictionary/english-russian/cognizant'),
+    ('ethereal', 'неземной',
+     'Крайне деликатный и лёгкий, неземной. Пример: "The ethereal beauty of the northern lights."',
+     '/ɪˈθɪə.ri.əl/',
+     'https://dictionary.cambridge.org/dictionary/english-russian/ethereal'),
+    ('fastidious', 'привередливый',
+     'Уделяющий большое внимание точности и деталям. Пример: "He is fastidious about his appearance."',
+     '/fæˈstɪd.i.əs/',
+     'https://dictionary.cambridge.org/dictionary/english-russian/fastidious')
+]
+
 # Инициализация таблицы карточек
 def init_db():
     try:
         with get_db_connection() as conn:
+            # Создаем таблицу cards
             conn.execute('''CREATE TABLE IF NOT EXISTS cards (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             english_word TEXT NOT NULL,
                             russian_word TEXT NOT NULL,
                             description TEXT,
+                            transcription TEXT,
+                            pronunciation_url TEXT,
                             image_path TEXT,
                             is_hidden INTEGER DEFAULT 0
                             )''')
+            
+            # Создаем таблицу highscores
             conn.execute('''CREATE TABLE IF NOT EXISTS highscores (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             player_name TEXT NOT NULL,
@@ -55,22 +105,17 @@ def init_db():
                             date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )''')
             
-            # Проверяем, есть ли карточки в азе
-            cards_count = conn.execute('SELECT COUNT(*) FROM cards').fetchone()[0]
-            if cards_count == 0:
-                # Добавляем начальные карточки
-                default_cards = [
-                    ('hello', 'привет', 'Универсальное приветствие в английском языке'),
-                    ('world', 'мир', 'Может означать как "мир" в глобальном смысле, так и "свет"'),
-                    ('cat', 'кошка', 'Домашнее животное семейства кошачьих'),
-                    ('dog', 'собака', 'Домашнее животное семейства псовых'),
-                    ('house', 'дом', 'Жилище, здание для проживания людей'),
-                    ('tree', 'дерево', 'Многолетнее растение с твердым стволом'),
-                    ('sun', 'солнце', 'Звезда, вокруг которой вращается Земля'),
-                    ('moon', 'луна', 'Естественный спутник Земли')
-                ]
-                conn.executemany('INSERT INTO cards (english_word, russian_word, description) VALUES (?, ?, ?)',
-                               default_cards)
+            # Очищаем существующие карточки по умолчанию
+            conn.execute('DELETE FROM cards WHERE id IN (SELECT id FROM cards LIMIT 8)')
+            
+            # Выбираем 8 случайных карточек из списка ADVANCED_WORDS
+            selected_cards = random.sample(ADVANCED_WORDS, 8)
+            
+            # Добавляем выбранные карточки с транскрипцией
+            conn.executemany('''INSERT INTO cards 
+                              (english_word, russian_word, description, transcription, pronunciation_url) 
+                              VALUES (?, ?, ?, ?, ?)''',
+                           [(word[0], word[1], word[2], word[3], word[4]) for word in selected_cards])
             conn.commit()
     except Exception as e:
         print(f"Error initializing database: {e}")
@@ -94,23 +139,26 @@ def add_card():
         english_word = request.form['english_word']
         russian_word = request.form['russian_word']
         description = request.form['description']
+        transcription = request.form['transcription']
+        pronunciation_url = request.form['pronunciation_url']
         
-        # Обработка загруженного файла
         image_path = None
         if 'image' in request.files:
             file = request.files['image']
             if file and file.filename and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                # Создаем уникальное имя файла
                 base, ext = os.path.splitext(filename)
                 filename = f"{base}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 image_path = f"card_images/{filename}"
 
         with get_db_connection() as conn:
-            conn.execute(
-                'INSERT INTO cards (english_word, russian_word, description, image_path) VALUES (?, ?, ?, ?)',
-                (english_word, russian_word, description, image_path)
+            conn.execute('''
+                INSERT INTO cards (english_word, russian_word, description, transcription, 
+                                 pronunciation_url, image_path) 
+                VALUES (?, ?, ?, ?, ?, ?)''',
+                (english_word, russian_word, description, transcription, 
+                 pronunciation_url, image_path)
             )
             conn.commit()
         return redirect(url_for('study'))
@@ -194,14 +242,14 @@ def save_score():
 
 # Добавьте после других маршрутов
 DEFAULT_PAIRS = [
-    {'english_word': 'hello', 'russian_word': 'привет'},
-    {'english_word': 'world', 'russian_word': 'мир'},
-    {'english_word': 'cat', 'russian_word': 'кошка'},
-    {'english_word': 'dog', 'russian_word': 'собака'},
-    {'english_word': 'house', 'russian_word': 'дом'},
-    {'english_word': 'tree', 'russian_word': 'дерево'},
-    {'english_word': 'sun', 'russian_word': 'солнце'},
-    {'english_word': 'moon', 'russian_word': 'луна'},
+    {'english_word': 'resilient', 'russian_word': 'стойкий'},
+    {'english_word': 'arbitrary', 'russian_word': 'произвольный'},
+    {'english_word': 'profound', 'russian_word': 'глубокий'},
+    {'english_word': 'intricate', 'russian_word': 'сложный'},
+    {'english_word': 'adamant', 'russian_word': 'непреклонный'},
+    {'english_word': 'peculiar', 'russian_word': 'своеобразный'},
+    {'english_word': 'eloquent', 'russian_word': 'красноречивый'},
+    {'english_word': 'tenacious', 'russian_word': 'упорный'}
 ]
 
 @app.route('/memory_game')
@@ -233,6 +281,8 @@ def get_card_description(card_id):
             'english_word': card['english_word'],
             'russian_word': card['russian_word'],
             'description': card['description'],
+            'transcription': card['transcription'],
+            'pronunciation_url': card['pronunciation_url'],
             'image_path': card['image_path']
         }
     return {'error': 'Card not found'}, 404

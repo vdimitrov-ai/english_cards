@@ -28,6 +28,12 @@
     <div class="modal-content">
         <span class="close">&times;</span>
         <h3 id="modalTitle"></h3>
+        <div class="pronunciation-section">
+            <span id="modalTranscription" class="transcription"></span>
+            <a id="modalPronunciation" class="pronunciation-link" target="_blank">
+                Послушать произношение
+            </a>
+        </div>
         <div id="modalImage" class="modal-image"></div>
         <p id="modalDescription"></p>
     </div>
@@ -64,13 +70,22 @@
         
         const modal = document.getElementById('cardInfoModal');
         const modalTitle = document.getElementById('modalTitle');
+        const modalTranscription = document.getElementById('modalTranscription');
+        const modalPronunciation = document.getElementById('modalPronunciation');
         const modalDescription = document.getElementById('modalDescription');
         const modalImage = document.getElementById('modalImage');
         
         modalTitle.textContent = data.english_word;
+        modalTranscription.textContent = data.transcription || '';
         modalDescription.textContent = data.description || 'Описание отсутствует';
         
-        // Обработка изображения
+        if (data.pronunciation_url) {
+            modalPronunciation.href = data.pronunciation_url;
+            modalPronunciation.style.display = 'inline';
+        } else {
+            modalPronunciation.style.display = 'none';
+        }
+        
         if (data.image_path) {
             modalImage.innerHTML = `<img src="/static/${data.image_path}" alt="Card image">`;
             modalImage.style.display = 'block';
