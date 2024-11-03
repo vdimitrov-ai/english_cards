@@ -3,14 +3,23 @@ import random
 import sqlite3
 from datetime import datetime
 
-# Добавьте импорт для работы с dotenv
-from dotenv import load_dotenv
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, redirect, render_template, request, url_for, jsonify
 from werkzeug.utils import secure_filename
 
-from configs import ADVANCED_WORDS, ALLOWED_EXTENSIONS, DATABASE, DEFAULT_PAIRS, RANDOM_NAMES, UPLOAD_FOLDER
-from groq_llm import GROQ_MODELS, _get_response_groq
+from configs import (
+    ADVANCED_WORDS,
+    ALLOWED_EXTENSIONS,
+    DATABASE,
+    DEFAULT_PAIRS,
+    RANDOM_NAMES,
+    UPLOAD_FOLDER,
+)
+
+# Добавьте импорт для работы с dotenv
+from dotenv import load_dotenv
+
 from yandex_gpt import _get_response_yandex_gpt
+from groq_llm import _get_response_groq, GROQ_MODELS
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
