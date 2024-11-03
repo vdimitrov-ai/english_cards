@@ -18,8 +18,19 @@
         <form action="{{ url_for('hide_card', card_id=card['id']) }}" method="post" class="hide-form">
             <button type="submit" class="hide-btn">✖</button>
         </form>
+        <div class="info-btn" onclick="showCardInfo(event, {{ card['id'] }})">?</div>
     </div>
     {% endfor %}
+</div>
+
+<!-- Модальное окно для отображения информации о карточке -->
+<div id="cardInfoModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 id="modalTitle"></h3>
+        <div id="modalImage" class="modal-image"></div>
+        <p id="modalDescription"></p>
+    </div>
 </div>
 
 <script>
@@ -40,9 +51,48 @@
             }
         });
         
-        // Изменяем текст кнопки
         const btn = document.querySelector('.flip-all-btn');
         btn.textContent = isFlippedMode ? 'Вернуть на английский' : 'Перевернуть все карточки';
+    }
+
+    // Добавляем функцию для отображения информации о карточке
+    async function showCardInfo(event, cardId) {
+        event.stopPropagation(); // Предотвращаем переворот карточки
+        
+        const response = await fetch(`/get_card_description/${cardId}`);
+        const data = await response.json();
+        
+        const modal = document.getElementById('cardInfoModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalDescription = document.getElementById('modalDescription');
+        const modalImage = document.getElementById('modalImage');
+        
+        modalTitle.textContent = data.english_word;
+        modalDescription.textContent = data.description || 'Описание отсутствует';
+        
+        // Обработка изображения
+        if (data.image_path) {
+            modalImage.innerHTML = `<img src="/static/${data.image_path}" alt="Card image">`;
+            modalImage.style.display = 'block';
+        } else {
+            modalImage.style.display = 'none';
+        }
+        
+        modal.style.display = 'block';
+    }
+
+    // Закрытие модального окна
+    const modal = document.getElementById('cardInfoModal');
+    const span = document.getElementsByClassName('close')[0];
+    
+    span.onclick = function() {
+        modal.style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
     }
 </script>
 {% endblock %}

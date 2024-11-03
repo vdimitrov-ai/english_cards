@@ -1,11 +1,28 @@
 _{% extends "base.html" %}
 {% block content %}
 <h2>Добавить новую карточку</h2>
-<form method="POST">
-    <label>Английское слово:</label>
-    <input type="text" name="english_word" required>
-    <label>Русское слово:</label>
-    <input type="text" name="russian_word" required>
-    <button type="submit">Добавить</button>
+<form method="POST" class="add-card-form" enctype="multipart/form-data">
+    <div class="form-group">
+        <label>Английское слово:</label>
+        <input type="text" name="english_word" required>
+    </div>
+    
+    <div class="form-group">
+        <label>Русское слово:</label>
+        <input type="text" name="russian_word" required>
+    </div>
+    
+    <div class="form-group">
+        <label>Описание:</label>
+        <textarea name="description" rows="4" placeholder="Добавьте описание или примеры использования слова"></textarea>
+    </div>
+    
+    <div class="form-group">
+        <label>Изображение:</label>
+        <input type="file" name="image" accept="image/*">
+        <div class="file-hint">Поддерживаемые форматы: PNG, JPG, GIF</div>
+    </div>
+    
+    <button type="submit" class="common-btn button">Добавить</button>
 </form>
 {% endblock %}
