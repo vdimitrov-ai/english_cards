@@ -1,10 +1,10 @@
 import json
 import logging
-from copy import deepcopy
 import os
+from copy import deepcopy
 
-import requests
 import dotenv
+import requests
 
 dotenv.load_dotenv()
 
@@ -15,7 +15,9 @@ system_prompt = os.getenv("system_prompt")
 logger = logging.getLogger(__name__)
 
 
-def _get_response_yandex_gpt(original_context: list[dict]):
+def _get_response_yandex_gpt(
+    original_context: list[dict], temperature=0.7, max_tokens=2000
+):
     context = deepcopy(original_context)
     sp = {
         "role": "system",
@@ -25,10 +27,14 @@ def _get_response_yandex_gpt(original_context: list[dict]):
         context.insert(0, sp)
     prompt = {
         "modelUri": f"gpt://{catalog_id}/yandexgpt/latest",
-        "completionOptions": {"stream": False, "temperature": 0.3, "maxTokens": "100"},
+        "completionOptions": {
+            "stream": False,
+            "temperature": temperature,
+            "maxTokens": str(max_tokens),
+        },
         "messages": context,
     }
-    logger.info(f'Context: {context}')
+    logger.info(f"Context: {context}")
 
     url = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
     headers = {
@@ -37,7 +43,7 @@ def _get_response_yandex_gpt(original_context: list[dict]):
     }
 
     try:
-        response = requests.post(url, headers=headers, json=prompt, timeout=10)
+        response = requests.post(url, headers=headers, json=prompt, timeout=30)
         logger.info("Successfully got response from YandexGPT")
         result = response.text
         json_data = json.loads(result)

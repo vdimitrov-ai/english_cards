@@ -3,14 +3,13 @@ import random
 import sqlite3
 from datetime import datetime
 
-from flask import Flask, redirect, render_template, request, url_for, jsonify
+# Добавьте импорт для работы с dotenv
+from dotenv import load_dotenv
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 from werkzeug.utils import secure_filename
 
 from configs import ADVANCED_WORDS, ALLOWED_EXTENSIONS, DATABASE, DEFAULT_PAIRS, RANDOM_NAMES, UPLOAD_FOLDER
-
-# Добавьте импорт для работы с dotenv
-from dotenv import load_dotenv
-
+from groq_llm import GROQ_MODELS, _get_response_groq
 from yandex_gpt import _get_response_yandex_gpt
 
 app = Flask(__name__)
@@ -60,6 +59,17 @@ def init_db():
                             )"""
             )
 
+            # Создаем таблицу chat_history с полем model
+            conn.execute(
+                """CREATE TABLE IF NOT EXISTS chat_history (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            role TEXT NOT NULL,
+                            message TEXT NOT NULL,
+                            model TEXT NOT NULL DEFAULT 'yandex',
+                            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            )"""
+            )
+
             # Проверяем количество существующих карточек
             card_count = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
 
@@ -73,7 +83,7 @@ def init_db():
                     # Проверяем, существует ли уже такая карточка
                     existing = conn.execute(
                         "SELECT id FROM cards WHERE english_word = ? AND russian_word = ?",
-                        (word[0], word[1])
+                        (word[0], word[1]),
                     ).fetchone()
 
                     # Вставляем только если карточки нет
@@ -82,7 +92,7 @@ def init_db():
                             """INSERT INTO cards 
                             (english_word, russian_word, description, transcription, pronunciation_url) 
                             VALUES (?, ?, ?, ?, ?)""",
-                            (word[0], word[1], word[2], word[3], word[4])
+                            (word[0], word[1], word[2], word[3], word[4]),
                         )
 
             conn.commit()
@@ -209,7 +219,7 @@ def highscores():
 def save_score():
     score = request.form.get("score")
     if score:
-        # Генерируем случайное имя
+        # Генерируем случа��ное имя
         player_name = random.choice(RANDOM_NAMES)
         # Получаем текущую дату и время
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -269,31 +279,95 @@ def get_card_description(card_id):
 def chat():
     return render_template("chat.html")
 
+
 @app.route("/ask", methods=["POST"])
 def ask():
     try:
         data = request.get_json()
-        user_message = data.get('message')
-        
-        # Формируем контекст для модели в формате Yandex GPT
-        context = [
-            {
-                "role": "user",
-                "text": user_message
-            }
-        ]
-        
-        # Получаем ответ от Yandex GPT
-        assistant_response, _ = _get_response_yandex_gpt(context)
-        
+        user_message = data.get("message")
+        model_key = data.get("model", "yandex")  # По умолчанию используем Yandex
+        temperature = float(data.get("temperature", 0.7))
+        max_tokens = int(data.get("max_tokens", 2000))
+
+        # Сохраняем сообщение пользователя
+        with get_db_connection() as conn:
+            conn.execute(
+                "INSERT INTO chat_history (role, message, model) VALUES (?, ?, ?)",
+                ("user", user_message, model_key),
+            )
+            conn.commit()
+
+            # Получаем последние N сообщений для контекста только для текущей модели
+            history = conn.execute(
+                "SELECT role, message FROM chat_history WHERE model = ? ORDER BY timestamp DESC LIMIT 10",
+                (model_key,),
+            ).fetchall()
+
+        # Формируем контекст для модели
+        context = []
+        for msg in reversed(history):
+            context.append({"role": msg["role"], "text": msg["message"]})
+
+        # Выбираем модель и получаем ответ
+        if model_key in GROQ_MODELS:  # Если выбрана одна из моделей Groq
+            assistant_response, tokens = _get_response_groq(
+                context,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                model=GROQ_MODELS[model_key],
+            )
+        else:  # yandex
+            assistant_response, tokens = _get_response_yandex_gpt(
+                context, temperature=temperature, max_tokens=max_tokens
+            )
+
         if assistant_response:
+            # Сохраняем ответ ассистента
+            with get_db_connection() as conn:
+                conn.execute(
+                    "INSERT INTO chat_history (role, message, model) VALUES (?, ?, ?)",
+                    ("assistant", assistant_response, model_key),
+                )
+                conn.commit()
             return jsonify({"response": assistant_response})
         else:
-            return jsonify({"response": "Извините, произошла ошибка. Попробуйте позже."}), 500
-            
+            return (
+                jsonify({"response": "Извините, произошла ошибка. Попробуйте позже."}),
+                500,
+            )
+
     except Exception as e:
         print(f"Error in ask endpoint: {e}")
-        return jsonify({"response": "Извините, произошла ошибка. Попробуйте позже."}), 500
+        return (
+            jsonify({"response": "Извините, произошла ошибка. Попробуйте позже."}),
+            500,
+        )
+
+
+@app.route("/get_chat_history")
+def get_chat_history():
+    try:
+        with get_db_connection() as conn:
+            history = conn.execute(
+                "SELECT role, message FROM chat_history ORDER BY timestamp ASC"
+            ).fetchall()
+        return jsonify([{"role": h["role"], "message": h["message"]} for h in history])
+    except Exception as e:
+        print(f"Error getting chat history: {e}")
+        return jsonify([])
+
+
+# Добавьте новый маршрут для очистки истории
+@app.route("/clear_chat_history", methods=["POST"])
+def clear_chat_history():
+    try:
+        with get_db_connection() as conn:
+            conn.execute("DELETE FROM chat_history")
+            conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"Error clearing chat history: {e}")
+        return jsonify({"success": False}), 500
 
 
 if __name__ == "__main__":

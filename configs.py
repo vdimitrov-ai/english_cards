@@ -99,36 +99,12 @@ RANDOM_NAMES = [
     "Юлия",
 ]
 DEFAULT_PAIRS = [
-    {
-        "english_word": "resilient",
-        "russian_word": "стойкий"
-    },
-    {
-        "english_word": "arbitrary",
-        "russian_word": "произвольный"
-    },
-    {
-        "english_word": "profound",
-        "russian_word": "глубокий"
-    },
-    {
-        "english_word": "intricate",
-        "russian_word": "сложный"
-    },
-    {
-        "english_word": "adamant",
-        "russian_word": "непреклонный"
-    },
-    {
-        "english_word": "peculiar",
-        "russian_word": "своеобразный"
-    },
-    {
-        "english_word": "eloquent",
-        "russian_word": "красноречивый"
-    },
-    {
-        "english_word": "tenacious",
-        "russian_word": "упорный"
-    },
+    {"english_word": "resilient", "russian_word": "стойкий"},
+    {"english_word": "arbitrary", "russian_word": "произвольный"},
+    {"english_word": "profound", "russian_word": "глубокий"},
+    {"english_word": "intricate", "russian_word": "сложный"},
+    {"english_word": "adamant", "russian_word": "непреклонный"},
+    {"english_word": "peculiar", "russian_word": "своеобразный"},
+    {"english_word": "eloquent", "russian_word": "красноречивый"},
+    {"english_word": "tenacious", "russian_word": "упорный"},
 ]

@@ -17,6 +17,7 @@ Create a `.env` file in the root directory with the following variables:
 # Yandex GPT API Configuration
 catalog_id = "your_catalog_id"        # Your Yandex GPT catalog ID
 secret_key = "your_secret_key"        # Your Yandex GPT API key
+GROQ_API_KEY = "your_groq_api_key"    # Your Groq API key
 
 # System Prompt for AI Assistant
 system_prompt = "You are an expert English language tutor. Your role is to:
@@ -38,6 +39,11 @@ To obtain the Yandex GPT API credentials:
 2. Navigate to the AI Services section
 3. Create a new catalog and get your `catalog_id`
 4. Generate an API key to get your `secret_key`
+
+To obtain the Groq API key:
+1. Create an account at [Groq](https://console.groq.com/)
+2. Navigate to the API Keys section
+3. Generate a new API key
 
 **Note**: Never commit your `.env` file to version control. The repository includes a `.env.example` file as a template.
 
