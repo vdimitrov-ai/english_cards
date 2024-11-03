@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for
 import sqlite3
 import os
+from datetime import datetime
+import random
 
 app = Flask(__name__)
 
@@ -35,7 +37,7 @@ def init_db():
                             date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )''')
             
-            # Проверяем, есть ли карточки в базе
+            # Проверяем, есть ли карточки в ��азе
             cards_count = conn.execute('SELECT COUNT(*) FROM cards').fetchone()[0]
             if cards_count == 0:
                 # Добавляем начальные карточки
@@ -131,14 +133,28 @@ def highscores():
         ''').fetchall()
     return render_template('highscores.html', scores=scores)
 
+# Добавьте список случайных имен
+RANDOM_NAMES = [
+    "Александр", "Мария", "Дмитрий", "Анна", "Иван", "Елена", "Сергей", 
+    "Ольга", "Андрей", "Наталья", "Михаил", "Екатери��а", "Владимир",
+    "Татьяна", "Алексей", "Светлана", "Николай", "Юлия"
+]
+
+# Измените функцию save_score
 @app.route('/save_score', methods=['POST'])
 def save_score():
-    player_name = request.form.get('player_name')
     score = request.form.get('score')
-    if player_name and score:
+    if score:
+        # Генерируем случайное имя
+        player_name = random.choice(RANDOM_NAMES)
+        # Получаем текущую дату и время
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
         with get_db_connection() as conn:
-            conn.execute('INSERT INTO highscores (player_name, score) VALUES (?, ?)',
-                        (player_name, score))
+            conn.execute(
+                'INSERT INTO highscores (player_name, score, date) VALUES (?, ?, ?)',
+                (player_name, score, current_time)
+            )
             conn.commit()
     return redirect(url_for('highscores'))
 

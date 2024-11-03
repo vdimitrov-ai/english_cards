@@ -18,9 +18,9 @@
     </div>
 
     <div id="saveScore" style="display: none;" class="save-score-form">
-        <h3>Сохранить результат</h3>
+        <h3>Игра окончена!</h3>
+        <p>Ваш результат: <span id="finalScoreDisplay">0</span> очков</p>
         <form action="{{ url_for('save_score') }}" method="POST">
-            <input type="text" name="player_name" placeholder="Ваше имя" required>
             <input type="hidden" name="score" id="finalScore">
             <button type="submit" class="common-btn button">Сохранить результат</button>
         </form>
@@ -81,6 +81,7 @@
         const finalScoreInput = document.getElementById('finalScore');
         saveScoreDiv.style.display = 'block';
         finalScoreInput.value = score;
+        document.getElementById('finalScoreDisplay').textContent = score;
     }
 
     function nextQuestion() {
