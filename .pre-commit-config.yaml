@@ -1,0 +1,89 @@
+default_language_version:
+    python: python3.11  # Указываем версию Python
+
+default_stages: [commit, push]  # Запускать хуки при коммите и пуше
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-json
+    -   id: check-toml
+    -   id: check-added-large-files
+        args: ['--maxkb=500']
+    -   id: detect-private-key  # Проверяет случайно закоммиченные приватные ключи
+    -   id: check-case-conflict  # Проверяет конфликты регистра в именах файлов
+    -   id: mixed-line-ending
+    -   id: check-merge-conflict  # Проверяет маркеры конфликтов слияния
+    -   id: debug-statements  # Ищет забытые debug-операторы
+
+-   repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+    -   id: black
+        args: [--line-length=100]
+
+-   repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+    -   id: isort
+        args: ["--profile", "black", "--filter-files"]
+
+-   repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+    -   id: flake8
+        additional_dependencies: [
+            'flake8-docstrings',  # Проверка докстрингов
+            'flake8-bugbear',     # Находит логические ошибки
+            'flake8-comprehensions',  # Улучшает list/dict comprehensions
+            'flake8-simplify',    # Упрощение кода
+            'flake8-annotations', # Проверка аннотаций типов
+            'flake8-eradicate',   # Находит закомментированный код
+            'flake8-bandit',      # Проверки безопасности
+            'flake8-builtins',    # Проверяет использование встроенных имен
+            'flake8-pytest-style', # Проверяет стиль тестов pytest
+        ]
+        args: [
+            '--max-line-length=100',
+            '--ignore=D100,D104,E203,E402,W503',
+        ]
+
+-   repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+    -   id: mypy
+        additional_dependencies: [
+            'types-all',
+            'pytest',
+        ]
+        args: [
+            '--ignore-missing-imports',
+            '--disallow-untyped-defs',
+            '--check-untyped-defs',
+        ]
+
+-   repo: https://github.com/PyCQA/bandit
+    rev: 1.7.7
+    hooks:
+    -   id: bandit
+        args: ['-ll', '-i']
+
+-   repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.13.0
+    hooks:
+    -   id: commitizen
+        stages: [commit-msg]  # Проверяет формат сообщений коммитов
+
+-   repo: local
+    hooks:
+    -   id: pytest
+        name: Run tests
+        entry: pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [push]  # Запускать тесты перед push
