@@ -55,22 +55,31 @@ def init_db():
                             )"""
             )
 
-            # Очищаем существующие карточки по умолчанию
-            conn.execute("DELETE FROM cards WHERE id IN (SELECT id FROM cards LIMIT 8)")
+            # Проверяем количество существующих карточек
+            card_count = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
 
-            # Выбираем 8 случайных карточек из списка ADVANCED_WORDS
-            selected_cards = random.sample(ADVANCED_WORDS, 8)
+            # Добавляем карточки только если их нет или меньше 8
+            if card_count < 8:
+                # Выбираем 8 случайных карточек из списка ADVANCED_WORDS
+                selected_cards = random.sample(ADVANCED_WORDS, 8)
 
-            # Добавляем выбранные карточки с транскрипцией
-            conn.executemany(
-                """INSERT INTO cards 
-                              (english_word, russian_word, description, transcription, pronunciation_url) 
-                              VALUES (?, ?, ?, ?, ?)""",
-                [
-                    (word[0], word[1], word[2], word[3], word[4])
-                    for word in selected_cards
-                ],
-            )
+                # Проверяем каждую карточку перед вставкой
+                for word in selected_cards:
+                    # Проверяем, существует ли уже такая карточка
+                    existing = conn.execute(
+                        "SELECT id FROM cards WHERE english_word = ? AND russian_word = ?",
+                        (word[0], word[1])
+                    ).fetchone()
+
+                    # Вставляем только если карточки нет
+                    if not existing:
+                        conn.execute(
+                            """INSERT INTO cards 
+                            (english_word, russian_word, description, transcription, pronunciation_url) 
+                            VALUES (?, ?, ?, ?, ?)""",
+                            (word[0], word[1], word[2], word[3], word[4])
+                        )
+
             conn.commit()
     except Exception as e:
         print(f"Error initializing database: {e}")
