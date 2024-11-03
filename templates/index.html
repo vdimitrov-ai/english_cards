@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Добро пожаловать на сайт для изучения английского!</h1>
+<p>Используйте меню для добавления новых карточек или для начала обучения.</p>
+<div class="main-action">
+    <a href="{{ url_for('study') }}" class="button common-btn">Начать обучение</a>
+</div>
+{% endblock %}

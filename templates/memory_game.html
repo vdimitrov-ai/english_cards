@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Найди пару</h2>
+
+<div class="memory-game-container">
+    <div class="memory-game-stats">
+        <div class="pairs-found">Найдено пар: <span id="pairsFound">0</span>/8</div>
+        <div class="timer">Время: <span id="timer">120</span>с</div>
+    </div>
+
+    <div class="memory-game-grid" id="gameGrid">
+        <!-- Карточки будут добавлены через JavaScript -->
+    </div>
+
+    <div class="memory-game-controls">
+        <button onclick="startMemoryGame()" class="common-btn button" id="startButton">Начать игру</button>
+    </div>
+
+    <div id="gameOverMessage" class="game-over-message" style="display: none;">
+        <h3>Игра окончена!</h3>
+        <p>Вы нашли <span id="finalPairs">0</span> пар за <span id="timeSpent">0</span> секунд</p>
+        <button onclick="startMemoryGame()" class="common-btn button">Играть снова</button>
+    </div>
+</div>
+
+<script>
+let cards = {{ cards|tojson|safe }};
+let gameCards = [];
+let selectedCards = [];
+let pairsFound = 0;
+let timeLeft = 120;
+let gameTimer = null;
+let isGameActive = false;
+
+function createGameCards() {
+    gameCards = [];
+    // Добавляем английские слова
+    cards.forEach(card => {
+        gameCards.push({
+            word: card.english_word,
+            isEnglish: true,
+            paired: false,
+            id: Math.random()
+        });
+    });
+    // Добавляем русские слова
+    cards.forEach(card => {
+        gameCards.push({
+            word: card.russian_word,
+            isEnglish: false,
+            paired: false,
+            id: Math.random()
+        });
+    });
+    // Перемешиваем карточки
+    gameCards.sort(() => Math.random() - 0.5);
+}
+
+function startMemoryGame() {
+    pairsFound = 0;
+    timeLeft = 120;
+    isGameActive = true;
+    selectedCards = [];
+    document.getElementById('pairsFound').textContent = '0';
+    document.getElementById('gameOverMessage').style.display = 'none';
+    document.getElementById('startButton').style.display = 'none';
+    
+    createGameCards();
+    renderGrid();
+    
+    if (gameTimer) clearInterval(gameTimer);
+    gameTimer = setInterval(() => {
+        timeLeft--;
+        document.getElementById('timer').textContent = timeLeft;
+        if (timeLeft <= 0 || pairsFound === 8) {
+            endMemoryGame();
+        }
+    }, 1000);
+}
+
+function renderGrid() {
+    const grid = document.getElementById('gameGrid');
+    grid.innerHTML = '';
+    
+    gameCards.forEach((card, index) => {
+        const cardElement = document.createElement('div');
+        cardElement.className = `memory-card ${card.paired ? 'paired' : ''}`;
+        cardElement.textContent = card.paired ? card.word : '?';
+        cardElement.onclick = () => !card.paired && selectCard(index);
+        grid.appendChild(cardElement);
+    });
+}
+
+function selectCard(index) {
+    if (!isGameActive || selectedCards.length >= 2) return;
+    
+    const card = gameCards[index];
+    if (card.paired) return;
+    
+    // Показываем карточку
+    const cardElement = document.querySelector(`#gameGrid .memory-card:nth-child(${index + 1})`);
+    cardElement.textContent = card.word;
+    
+    selectedCards.push({ index, card });
+    
+    if (selectedCards.length === 2) {
+        checkPair();
+    }
+}
+
+function checkPair() {
+    const [first, second] = selectedCards;
+    const firstCard = cards.find(c => 
+        (first.card.isEnglish && c.english_word === first.card.word) ||
+        (!first.card.isEnglish && c.russian_word === first.card.word)
+    );
+    
+    const isMatch = firstCard && (
+        (first.card.isEnglish && !second.card.isEnglish && firstCard.russian_word === second.card.word) ||
+        (!first.card.isEnglish && second.card.isEnglish && firstCard.english_word === second.card.word)
+    );
+    
+    setTimeout(() => {
+        if (isMatch) {
+            gameCards[first.index].paired = true;
+            gameCards[second.index].paired = true;
+            pairsFound++;
+            document.getElementById('pairsFound').textContent = pairsFound;
+            
+            if (pairsFound === 8) {
+                endMemoryGame();
+            }
+        }
+        
+        selectedCards = [];
+        renderGrid();
+    }, 1000);
+}
+
+function endMemoryGame() {
+    isGameActive = false;
+    clearInterval(gameTimer);
+    
+    const timeSpent = 120 - timeLeft;
+    document.getElementById('gameOverMessage').style.display = 'block';
+    document.getElementById('finalPairs').textContent = pairsFound;
+    document.getElementById('timeSpent').textContent = timeSpent;
+    document.getElementById('startButton').style.display = 'block';
+}
+</script>
+{% endblock %} 

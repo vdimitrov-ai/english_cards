@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Рекорды игры "Царь Горы"</h2>
+
+<div class="highscores-container">
+    <table class="highscores-table">
+        <thead>
+            <tr>
+                <th>Место</th>
+                <th>Игрок</th>
+                <th>Очки</th>
+                <th>Дата</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for score in scores %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ score['player_name'] }}</td>
+                <td>{{ score['score'] }}</td>
+                <td>{{ score['date'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="back-to-game">
+        <a href="{{ url_for('game') }}" class="common-btn button">Играть снова</a>
+    </div>
+</div>
+{% endblock %} 

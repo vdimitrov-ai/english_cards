@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Учить карточки</h2>
+
+<div class="top-controls">
+    <a href="{{ url_for('add_card') }}" class="button common-btn">Добавить карточку</a>
+    <form action="{{ url_for('restore_all') }}" method="post" style="display: inline;">
+        <button type="submit" class="restore-btn common-btn">Восстановить все карточки</button>
+    </form>
+    <button onclick="flipAllCards()" class="flip-all-btn common-btn">Перевернуть все карточки</button>
+</div>
+
+<div id="flashcards">
+    {% for card in cards %}
+    <div class="card" onclick="toggleCard(this)">
+        <div class="front">{{ card['english_word'] }}</div>
+        <div class="back">{{ card['russian_word'] }}</div>
+        <form action="{{ url_for('hide_card', card_id=card['id']) }}" method="post" class="hide-form">
+            <button type="submit" class="hide-btn">✖</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    let isFlippedMode = false;
+
+    function toggleCard(card) {
+        card.classList.toggle('flipped');
+    }
+
+    function flipAllCards() {
+        isFlippedMode = !isFlippedMode;
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+            if (isFlippedMode) {
+                card.classList.add('flipped');
+            } else {
+                card.classList.remove('flipped');
+            }
+        });
+        
+        // Изменяем текст кнопки
+        const btn = document.querySelector('.flip-all-btn');
+        btn.textContent = isFlippedMode ? 'Вернуть на английский' : 'Перевернуть все карточки';
+    }
+</script>
+{% endblock %}

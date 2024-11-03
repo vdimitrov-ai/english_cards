@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Царь Горы</h2>
+
+<div class="game-container">
+    <div class="game-stats">
+        <div class="score">Очки: <span id="score">0</span></div>
+        <div class="timer">Время: <span id="timer">30</span>с</div>
+    </div>
+
+    <div class="game-area">
+        <div class="question-word" id="questionWord"></div>
+        <div class="options-container" id="options"></div>
+    </div>
+
+    <div class="game-controls">
+        <button onclick="startGame()" class="common-btn button" id="startButton">Начать игру</button>
+    </div>
+
+    <div id="saveScore" style="display: none;" class="save-score-form">
+        <h3>Сохранить результат</h3>
+        <form action="{{ url_for('save_score') }}" method="POST">
+            <input type="text" name="player_name" placeholder="Ваше имя" required>
+            <input type="hidden" name="score" id="finalScore">
+            <button type="submit" class="common-btn button">Сохранить результат</button>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    const cards = JSON.parse('{{ cards|tojson|safe }}');
+    
+    if (!cards || cards.length === 0) {
+        document.getElementById('questionWord').textContent = 'Нет доступных карточек для игры';
+        document.getElementById('startButton').style.display = 'none';
+        return;
+    }
+
+    let currentQuestion = null;
+    let score = 0;
+    let timeLeft = 30;
+    let gameTimer = null;
+    let isGameActive = false;
+
+    window.startGame = function() {
+        score = 0;
+        timeLeft = 30;
+        isGameActive = true;
+        document.getElementById('score').textContent = score;
+        document.getElementById('startButton').style.display = 'none';
+        document.getElementById('saveScore').style.display = 'none';
+        
+        updateTimer();
+        gameTimer = setInterval(() => {
+            timeLeft--;
+            updateTimer();
+            if (timeLeft <= 0) {
+                endGame();
+            }
+        }, 1000);
+        
+        nextQuestion();
+    };
+
+    window.checkAnswer = checkAnswer;
+
+    function updateTimer() {
+        document.getElementById('timer').textContent = timeLeft;
+    }
+
+    function endGame() {
+        clearInterval(gameTimer);
+        isGameActive = false;
+        document.getElementById('questionWord').textContent = `Игра окончена! Ваш счет: ${score}`;
+        document.getElementById('options').innerHTML = '';
+        document.getElementById('startButton').style.display = 'block';
+        document.getElementById('startButton').textContent = 'Играть снова';
+        
+        const saveScoreDiv = document.getElementById('saveScore');
+        const finalScoreInput = document.getElementById('finalScore');
+        saveScoreDiv.style.display = 'block';
+        finalScoreInput.value = score;
+    }
+
+    function nextQuestion() {
+        if (!isGameActive) return;
+        
+        currentQuestion = cards[Math.floor(Math.random() * cards.length)];
+        
+        const isEnglishQuestion = Math.random() < 0.5;
+        
+        document.getElementById('questionWord').textContent = isEnglishQuestion 
+            ? currentQuestion.english_word 
+            : currentQuestion.russian_word;
+        
+        let options = [isEnglishQuestion ? currentQuestion.russian_word : currentQuestion.english_word];
+        
+        while (options.length < 4) {
+            const randomCard = cards[Math.floor(Math.random() * cards.length)];
+            const optionWord = isEnglishQuestion ? randomCard.russian_word : randomCard.english_word;
+            if (!options.includes(optionWord) && randomCard !== currentQuestion) {
+                options.push(optionWord);
+            }
+        }
+        
+        options.sort(() => Math.random() - 0.5);
+        
+        const optionsContainer = document.getElementById('options');
+        optionsContainer.innerHTML = '';
+        options.forEach(option => {
+            const button = document.createElement('button');
+            button.textContent = option;
+            button.className = 'option-btn common-btn';
+            button.addEventListener('click', function() {
+                checkAnswer(option, isEnglishQuestion);
+            });
+            optionsContainer.appendChild(button);
+        });
+    }
+
+    function checkAnswer(selectedOption, isEnglishQuestion) {
+        if (!isGameActive) return;
+        
+        const correctAnswer = isEnglishQuestion 
+            ? currentQuestion.russian_word 
+            : currentQuestion.english_word;
+        
+        if (selectedOption === correctAnswer) {
+            score += 10;
+            document.getElementById('score').textContent = score;
+            timeLeft = Math.min(timeLeft + 5, timeLeft);
+            updateTimer();
+        } else {
+            score = Math.max(0, score - 10);
+            document.getElementById('score').textContent = score;
+        }
+        
+        nextQuestion();
+    }
+})();
+</script>
+{% endblock %} 

@@ -1,0 +1,11 @@
+_{% extends "base.html" %}
+{% block content %}
+<h2>Добавить новую карточку</h2>
+<form method="POST">
+    <label>Английское слово:</label>
+    <input type="text" name="english_word" required>
+    <label>Русское слово:</label>
+    <input type="text" name="russian_word" required>
+    <button type="submit">Добавить</button>
+</form>
+{% endblock %}
