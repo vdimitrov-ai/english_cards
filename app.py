@@ -3,10 +3,15 @@ import random
 import sqlite3
 from datetime import datetime
 
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, redirect, render_template, request, url_for, jsonify
 from werkzeug.utils import secure_filename
 
 from configs import ADVANCED_WORDS, ALLOWED_EXTENSIONS, DATABASE, DEFAULT_PAIRS, RANDOM_NAMES, UPLOAD_FOLDER
+
+# Добавьте импорт для работы с dotenv
+from dotenv import load_dotenv
+
+from yandex_gpt import _get_response_yandex_gpt
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -257,6 +262,38 @@ def get_card_description(card_id):
             "image_path": card["image_path"],
         }
     return {"error": "Card not found"}, 404
+
+
+# Добавьте новые маршруты
+@app.route("/chat")
+def chat():
+    return render_template("chat.html")
+
+@app.route("/ask", methods=["POST"])
+def ask():
+    try:
+        data = request.get_json()
+        user_message = data.get('message')
+        
+        # Формируем контекст для модели в формате Yandex GPT
+        context = [
+            {
+                "role": "user",
+                "text": user_message
+            }
+        ]
+        
+        # Получаем ответ от Yandex GPT
+        assistant_response, _ = _get_response_yandex_gpt(context)
+        
+        if assistant_response:
+            return jsonify({"response": assistant_response})
+        else:
+            return jsonify({"response": "Извините, произошла ошибка. Попробуйте позже."}), 500
+            
+    except Exception as e:
+        print(f"Error in ask endpoint: {e}")
+        return jsonify({"response": "Извините, произошла ошибка. Попробуйте позже."}), 500
 
 
 if __name__ == "__main__":
