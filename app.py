@@ -42,6 +42,8 @@ def allowed_file(filename):
 
 
 def init_db():
+    if not os.path.exists(DATABASE):
+        os.makedirs(DATABASE, exist_ok=True)
     try:
         with get_db_connection() as conn:
             # Создаем таблицу cards
