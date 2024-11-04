@@ -1,28 +1,28 @@
+import logging
 import os
 import random
 import sqlite3
 from datetime import datetime
 
-from flask import Flask, redirect, render_template, request, url_for, jsonify
-from werkzeug.utils import secure_filename
-
-from configs import (
-    ADVANCED_WORDS,
-    ALLOWED_EXTENSIONS,
-    DATABASE,
-    DEFAULT_PAIRS,
-    RANDOM_NAMES,
-    UPLOAD_FOLDER,
-)
-
 # Добавьте импорт для работы с dotenv
 from dotenv import load_dotenv
+from flask import Flask, jsonify, redirect, render_template, request, url_for
+from werkzeug.utils import secure_filename
 
+from configs import ADVANCED_WORDS, ALLOWED_EXTENSIONS, DATABASE, DEFAULT_PAIRS, RANDOM_NAMES, UPLOAD_FOLDER
+from groq_llm import GROQ_MODELS, _get_response_groq
 from yandex_gpt import _get_response_yandex_gpt
-from groq_llm import _get_response_groq, GROQ_MODELS
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+# Настройка логирования в начале файла после импортов
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 
 # Функция для подключения к базе данных
@@ -228,7 +228,7 @@ def highscores():
 def save_score():
     score = request.form.get("score")
     if score:
-        # Генерируем случа��ное имя
+        # Генерируем случаное имя
         player_name = random.choice(RANDOM_NAMES)
         # Получаем текущую дату и время
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -294,9 +294,19 @@ def ask():
     try:
         data = request.get_json()
         user_message = data.get("message")
-        model_key = data.get("model", "yandex")  # По умолчанию используем Yandex
+        model_key = data.get("model", "yandex")
         temperature = float(data.get("temperature", 0.7))
         max_tokens = int(data.get("max_tokens", 2000))
+
+        logger.info(
+            f"Received request - Model: {model_key}, Temperature: {temperature}, Max Tokens: {max_tokens}"
+        )
+        logger.info(
+            f"User message: {user_message[:100]}..."
+        )  # Логируем первые 100 символов сообщения
+
+        if not user_message:
+            return jsonify({"response": "Message cannot be empty"}), 400
 
         # Сохраняем сообщение пользователя
         with get_db_connection() as conn:
@@ -306,32 +316,36 @@ def ask():
             )
             conn.commit()
 
-            # Получаем последние N сообщений для контекста только для текущей модели
             history = conn.execute(
                 "SELECT role, message FROM chat_history WHERE model = ? ORDER BY timestamp DESC LIMIT 10",
                 (model_key,),
             ).fetchall()
 
-        # Формируем контекст для модели
         context = []
         for msg in reversed(history):
             context.append({"role": msg["role"], "text": msg["message"]})
 
-        # Выбираем модель и получаем ответ
-        if model_key in GROQ_MODELS:  # Если выбрана одна из моделей Groq
+        logger.info(f"Context length: {len(context)}")
+
+        # Получаем ответ от модели
+        if model_key in GROQ_MODELS:
+            logger.info(f"Using Groq model: {GROQ_MODELS[model_key]}")
             assistant_response, tokens = _get_response_groq(
                 context,
                 temperature=temperature,
                 max_tokens=max_tokens,
                 model=GROQ_MODELS[model_key],
             )
-        else:  # yandex
+        else:
+            logger.info("Using YandexGPT model")
             assistant_response, tokens = _get_response_yandex_gpt(
                 context, temperature=temperature, max_tokens=max_tokens
             )
 
+        logger.info(f"Response received. Tokens used: {tokens}")
+
         if assistant_response:
-            # Сохраняем ответ ассистента
+            logger.info(f"Assistant response length: {len(assistant_response)}")
             with get_db_connection() as conn:
                 conn.execute(
                     "INSERT INTO chat_history (role, message, model) VALUES (?, ?, ?)",
@@ -340,17 +354,21 @@ def ask():
                 conn.commit()
             return jsonify({"response": assistant_response})
         else:
+            logger.error("Empty response received from model")
             return (
-                jsonify({"response": "Извините, произошла ошибка. Попробуйте позже."}),
+                jsonify(
+                    {
+                        "response": "Извините, не удалось получить ответ. Попробуйте позже."
+                    }
+                ),
                 500,
             )
 
     except Exception as e:
-        print(f"Error in ask endpoint: {e}")
-        return (
-            jsonify({"response": "Извините, произошла ошибка. Попробуйте позже."}),
-            500,
-        )
+        logger.error(
+            f"Error in ask endpoint: {str(e)}", exc_info=True
+        )  # Добавляем полный стек ошибки
+        return jsonify({"response": f"Произошла ошибка: {str(e)}"}), 500
 
 
 @app.route("/get_chat_history")
@@ -379,6 +397,30 @@ def clear_chat_history():
         return jsonify({"success": False}), 500
 
 
+# Добавьте в начало файла после импортов
+def check_environment():
+    required_vars = {
+        "catalog_id": "ID каталога Yandex Cloud",
+        "secret_key": "API ключ Yandex Cloud",
+        "system_prompt": "Системный промпт для модели (будет использовано значение по умолчанию, если не задано)",
+        "GROQ_API_KEY": "API ключ для Groq (опционально)",
+    }
+
+    missing_vars = []
+    for var, description in required_vars.items():
+        if not os.getenv(var) and var not in ["system_prompt", "GROQ_API_KEY"]:
+            missing_vars.append(f"{var} ({description})")
+
+    if missing_vars:
+        error_msg = "Missing required environment variables:\n" + "\n".join(
+            missing_vars
+        )
+        logger.error(error_msg)
+        raise EnvironmentError(error_msg)
+
+
 if __name__ == "__main__":
-    init_db()  # Инициализируем базу данных при запуске
+    load_dotenv()  # Убедимся, что переменные окружения загружены
+    check_environment()
+    init_db()
     app.run(debug=True)
