@@ -88,6 +88,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+function addMessage(text, type, useMarkdown = false) {
+    const messagesContainer = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    
+    // Если нужно использовать markdown и это ответ ассистента
+    if (useMarkdown && type === 'assistant') {
+        // Используем marked для преобразования markdown в HTML
+        messageDiv.innerHTML = marked.parse(text);
+    } else {
+        messageDiv.textContent = text;
+    }
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    return messageDiv; // Возвращаем созданный элемент
+}
+
 async function sendMessage(event) {
     event.preventDefault();
     
@@ -95,7 +114,6 @@ async function sendMessage(event) {
     const message = messageInput.value.trim();
     if (!message) return;
     
-    // Получаем настройки модел��
     const model = document.getElementById('modelSelect').value;
     const temperature = parseFloat(document.getElementById('temperature').value);
     const maxTokens = parseInt(document.getElementById('maxTokens').value);
@@ -103,6 +121,10 @@ async function sendMessage(event) {
     // Добавляем сообщение пользователя
     addMessage(message, 'user');
     messageInput.value = '';
+    messageInput.disabled = true; // Блокируем ввод на время ожидания ответа
+    
+    // Добавляем индикатор загрузки и сохраняем ссылку на него
+    const loadingMessage = addMessage('Печатает...', 'system');
     
     try {
         const response = await fetch('/ask', {
@@ -119,27 +141,30 @@ async function sendMessage(event) {
         });
         
         const data = await response.json();
+        
+        // Удаляем индикатор загрузки
+        if (loadingMessage && loadingMessage.parentNode) {
+            loadingMessage.remove();
+        }
+        
+        if (!response.ok) {
+            throw new Error(data.response || 'Ошибка сервера');
+        }
+        
+        if (!data.response) {
+            throw new Error('Пустой ответ от сервера');
+        }
+        
         addMessage(data.response, 'assistant', true);
     } catch (error) {
-        addMessage('Извините, произошла ошибка. Попробуйте позже.', 'system');
+        // Удаляем индикатор загрузки в случае ошибки
+        if (loadingMessage && loadingMessage.parentNode) {
+            loadingMessage.remove();
+        }
+        addMessage(`Ошибка: ${error.message}. Пожалуйста, попробуйте позже.`, 'system');
+    } finally {
+        messageInput.disabled = false; // Разблокируем ввод
     }
-}
-
-function addMessage(text, type, useMarkdown = false) {
-    const messagesContainer = document.getElementById('chatMessages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
-    
-    // Если нужно использовать markdown и это ответ ассистента
-    if (useMarkdown && type === 'assistant') {
-        // Используем marked для преобразования markdown в HTML
-        messageDiv.innerHTML = marked.parse(text);
-    } else {
-        messageDiv.textContent = text;
-    }
-    
-    messagesContainer.appendChild(messageDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
 // Добавляем обработчик изменения значения temperature
