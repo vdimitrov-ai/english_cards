@@ -5,8 +5,8 @@ from typing import List, Tuple
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # Пути к директориям и файлам
-DATABASE = os.path.join(BASE_DIR, 'db', 'cards.db')
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'card_images')
+DATABASE = os.path.join(BASE_DIR, "db", "cards.db")
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "card_images")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
 ADVANCED_WORDS: List[Tuple[str, str, str, str, str]] = [
