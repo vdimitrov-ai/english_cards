@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./db:/app/db
+      - ./static/card_images:/app/static/card_images
+      - ./.env:/app/.env
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+    restart: unless-stopped
+    command: gunicorn --bind 0.0.0.0:5000 --workers 4 --threads 2 app:app 
